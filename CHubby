@@ -1,0 +1,220 @@
+import logging
+import random
+from telegram import Update, InputMediaPhoto, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, filters, CallbackContext
+import schedule
+import time
+from threading import Thread
+
+# Enable logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Your Bot API token from BotFather # Create your own TOKEN API TopG
+BOT_TOKEN = "7712854403:AAED8Vh3gbrHuh_sOX2bdqWzmRk5ACPHdXk" 
+
+# Global variables for storing user data
+user_scores = {}
+questions = [
+    {
+        "question": "What's Chubbs' favorite food?",
+        "choices": ["A) Pizza", "B) Turkey 🍗", "C) Tacos", "D) Ice Cream"],
+        "correct_answer": "B) Turkey 🍗"
+    },
+    {
+        "question": "How does Chubbs stay so plump?",
+        "choices": ["A) Yoga", "B) Eating 10,000 calories a day 🍴", "C) Running marathons", "D) Drinking protein shakes"],
+        "correct_answer": "B) Eating 10,000 calories a day 🍴"
+    },
+    {
+        "question": "What's Chubbs' secret weapon for finding food?",
+        "choices": ["A) His nose 👃", "B) His eyes 👀", "C) His belly 🍔", "D) His paws"],
+        "correct_answer": "A) His nose 👃"
+    },
+    {
+        "question": "What is Chubbs' motto in life?",
+        "choices": ["A) 'Work hard, feast harder!'", "B) 'I only eat veggies!'", "C) 'Nap and snack all day!'", "D) 'One meal, one nap!'"],
+        "correct_answer": "A) 'Work hard, feast harder!'"
+    },
+    {
+        "question": "What’s Chubbs’ favorite kind of dessert?",
+        "choices": ["A) Chocolate cake 🍰", "B) Turkey stuffing", "C) Ice cream sundae 🍦", "D) Pumpkin pie"],
+        "correct_answer": "C) Ice cream sundae 🍦"
+    },
+    {
+        "question": "What would Chubbs choose as his dream job?",
+        "choices": ["A) Professional eater 🍗", "B) Chef", "C) Food critic", "D) Personal trainer"],
+        "correct_answer": "A) Professional eater 🍗"
+    },
+    {
+        "question": "What’s Chubbs' go-to snack after a long day of feasting?",
+        "choices": ["A) Chips and salsa", "B) A whole turkey leg 🦃", "C) Carrot sticks", "D) A cheeseburger"],
+        "correct_answer": "B) A whole turkey leg 🦃"
+    },
+    {
+        "question": "How does Chubbs feel about vegetables?",
+        "choices": ["A) Loves them", "B) Pretends to like them", "C) They're not his thing 🙅‍♂️", "D) They're for snack breaks"],
+        "correct_answer": "C) They're not his thing 🙅‍♂️"
+    },
+    {
+        "question": "If Chubbs were on a diet, what would he cheat with?",
+        "choices": ["A) Chocolate cake 🍫", "B) A triple bacon burger 🍔", "C) A massive turkey feast 🦃", "D) All-you-can-eat buffet"],
+        "correct_answer": "C) A massive turkey feast 🦃"
+    },
+    {
+        "question": "What's Chubbs' favorite way to start his day?",
+        "choices": ["A) A jog through the park", "B) A big breakfast with pancakes and syrup", "C) A huge turkey sandwich", "D) A giant bowl of cereal"],
+        "correct_answer": "B) A big breakfast with pancakes and syrup"
+    },
+    {
+        "question": "Chubbs' favorite sport to watch is...",
+        "choices": ["A) Wrestling", "B) Baseball", "C) Competitive eating 🏆", "D) Track & field"],
+        "correct_answer": "C) Competitive eating 🏆"
+    },
+    {
+        "question": "What’s Chubbs' opinion on salads?",
+        "choices": ["A) 'Tastes like punishment'", "B) 'Perfect for dessert'", "C) 'I could live on them!'", "D) 'I’ll have the dressing and skip the leaves'"],
+        "correct_answer": "A) 'Tastes like punishment'"
+    },
+    {
+        "question": "What would Chubbs say after finishing an entire turkey by himself?",
+        "choices": ["A) 'I’m stuffed!'", "B) 'That was a snack!'", "C) 'What’s next?'", "D) 'Time for a nap!'"],
+        "correct_answer": "D) 'Time for a nap!'"
+    },
+    {
+        "question": "Chubbs’ favorite holiday is...",
+        "choices": ["A) Thanksgiving 🦃", "B) Halloween (for all the candy!)", "C) Christmas (more turkey!)", "D) National Pizza Day"],
+        "correct_answer": "A) Thanksgiving 🦃"
+    },
+    {
+        "question": "If Chubbs could only eat one food for the rest of his life, it would be...",
+        "choices": ["A) Pizza", "B) Turkey 🍗", "C) Donuts 🍩", "D) Spaghetti"],
+        "correct_answer": "B) Turkey 🍗"
+    },
+    {
+        "question": "What would Chubbs wear to a formal dinner party?",
+        "choices": ["A) A tuxedo", "B) A bib and fork", "C) A party hat and a belly", "D) A food-stained shirt"],
+        "correct_answer": "C) A party hat and a belly"
+    },
+    {
+        "question": "What's Chubbs' favorite way to celebrate a successful feast?",
+        "choices": ["A) Take a victory nap 💤", "B) Go for a walk", "C) Send thank you cards to the chef", "D) Share leftovers with friends"],
+        "correct_answer": "A) Take a victory nap 💤"
+    },
+    {
+        "question": "How much food can Chubbs eat in one sitting?",
+        "choices": ["A) A whole pizza", "B) A two-foot sub", "C) A Thanksgiving feast for 5", "D) A single turkey 🦃"],
+        "correct_answer": "C) A Thanksgiving feast for 5"
+    },
+    {
+        "question": "What's Chubbs' favorite part of Thanksgiving dinner?",
+        "choices": ["A) The mashed potatoes", "B) The turkey legs 🦵", "C) The cranberry sauce", "D) The pumpkin pie"],
+        "correct_answer": "B) The turkey legs 🦵"
+    },
+    {
+        "question": "When Chubbs gets a snack, what does he say?",
+        "choices": ["A) 'I’m on a diet.'", "B) 'I’ll have a small bite.'", "C) 'Feast mode: ON!' 🍽️", "D) 'I’ll just have a nibble.'"],
+        "correct_answer": "C) 'Feast mode: ON!' 🍽️"
+    }
+]
+
+
+# Chubbs character image URL (replace with the actual image link, we can copy Chubbs meme picture)
+chubbs_image_url = "https://path_to_chubbs_image.jpg"
+
+
+# Function to send a new question
+def send_question(update: Update, context: CallbackContext):
+    question = random.choice(questions)
+    user = update.message.from_user
+    question_text = f"{question['question']}\n"
+
+    # Create inline buttons for answer choices
+    buttons = [
+        [InlineKeyboardButton(choice, callback_data=choice)] for choice in question['choices']
+    ]
+    keyboard = InlineKeyboardMarkup(buttons)
+
+    # Send Chubbs' image and the question
+    context.bot.send_photo(chat_id=user.id, photo=chubbs_image_url)
+    context.bot.send_message(chat_id=user.id, text=question_text, reply_markup=keyboard)
+
+    # Set up the countdown and answer timeout
+    context.job_queue.run_once(timeout_answer, 30, context=user.id)
+
+
+# Function to handle the timeout when no answer is given
+def timeout_answer(context: CallbackContext):
+    chat_id = context.job.context
+    context.bot.send_message(chat_id=chat_id, text="Time's up! Try again next time.")
+
+
+# Function to check the user's answer and update the score
+def check_answer(update: Update, context: CallbackContext):
+    query = update.callback_query
+    question = random.choice(questions)  # For simplicity, we'll use a random question each time
+    correct_answer = question['correct_answer']
+
+    if query.data == correct_answer:
+        user = update.callback_query.from_user
+        user_scores[user.id] = user_scores.get(user.id, 0) + 1
+        query.answer(text="Correct! You've earned 1 point.")
+    else:
+        query.answer(text="Incorrect! Try again next time.")
+
+
+# Command to check score
+def view_score(update: Update, context: CallbackContext):
+    user = update.message.from_user
+    score = user_scores.get(user.id, 0)
+    update.message.reply_text(f"Your score: {score} points")
+
+
+# Function to send random question every 15 minutes
+def schedule_question(updater: Updater):
+    job_queue = updater.job_queue
+    job_queue.run_repeating(send_question, interval=900, first=0)  # 900 seconds = 15 minutes
+
+
+# Function to show leaderboard
+def leaderboard(update: Update, context: CallbackContext):
+    sorted_scores = sorted(user_scores.items(), key=lambda item: item[1], reverse=True)
+    leaderboard_message = "Leaderboard:\n"
+    for idx, (user_id, score) in enumerate(sorted_scores, 1):
+        user = context.bot.get_chat(user_id)
+        leaderboard_message += f"{idx}. {user.first_name}: {score} points\n"
+
+    update.message.reply_text(leaderboard_message)
+
+
+# Function to handle errors
+def error(update: Update, context: CallbackContext):
+    logger.warning(f"Update {update} caused error {context.error}")
+
+
+# Main function to run the bot
+def main():
+    # Create the Updater and Dispatcher
+    updater = Updater(BOT_TOKEN, use_context=True)
+    dp = updater.dispatcher
+    job_queue = updater.job_queue
+
+    # Handlers
+    dp.add_handler(CommandHandler("start", send_question))
+    dp.add_handler(CommandHandler("score", view_score))
+    dp.add_handler(CommandHandler("leaderboard", leaderboard))
+    dp.add_handler(CallbackQueryHandler(check_answer))
+
+    # Schedule questions every 15 minutes
+    schedule_question(updater)
+
+    # Start polling to get updates
+    updater.start_polling()
+
+    # Idle to keep the bot running
+    updater.idle()
+
+
+if __name__ == '__main__':
+    main()
