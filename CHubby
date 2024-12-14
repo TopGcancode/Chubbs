@@ -12,7 +12,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Your Bot API token from BotFather # Create your own TOKEN API TopG
-BOT_TOKEN = "7712854403:AAED8Vh3gbrHuh_sOX2bdqWzmRk5ACPHdXk" 
+BOT_TOKEN = "71254403:ASED8Vh3gbrHuh_sdfjkdfjkdkdfdfk" 
 
 # Global variables for storing user data
 user_scores = {}
